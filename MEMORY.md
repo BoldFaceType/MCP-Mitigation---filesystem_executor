@@ -23,3 +23,19 @@ Technical debt added:
 - Gateway authentication and public/semi-public routing are not implemented yet.
 - Ollama is documented as a future backend but is not implemented behind the worker broker yet.
 - The folder `C:\Dev\projects\mcp-mitigation` is not currently a Git repository, so these changes are not tracked by Git in this directory.
+
+## 2026-05-29 - Canonical GitHub repository promotion
+
+Decisions made:
+
+- `C:\Dev\projects\MCP-Mitigation---filesystem_executor` is the canonical Git checkout and SSoT for `BoldFaceType/MCP-Mitigation---filesystem_executor`.
+- The recent bounded MCP worker-plane prototype from `C:\Dev\projects\mcp-mitigation` was promoted into the canonical repo.
+- The canonical `main` branch was pushed directly after local hygiene, syntax, and MCP smoke verification.
+- Runtime audit output remains evidence, not source; `src/audit.jsonl` is ignored and was not committed.
+- The unrelated local `Google API key SKILL.md` remains untracked and out of the shipped scope.
+
+Technical debt added:
+
+- The non-git prototype folder still exists locally and may drift if future work continues there instead of the canonical checkout.
+- Legacy local REST endpoints for execute, file access, and MQTT remain in the service alongside the bounded `/mcp` worker endpoint; deployment routing must preserve the external boundary so remote clients only reach `call_worker`.
+- Gateway authentication and public/semi-public routing remain future work.
