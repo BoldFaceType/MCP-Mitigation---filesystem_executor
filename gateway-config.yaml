@@ -1,0 +1,25 @@
+# Docker MCP Gateway Configuration
+# Managed by: mcp-mitigation project
+#
+# FILESYSTEM SERVER CONFIGURATION
+# --------------------------------
+# The filesystem MCP server gives the AI model read access to C:\Dev\projects
+# (mounted as /workspace inside the spawned container).
+#
+# Current access level: READ-ONLY (:ro)
+# This means the model can read and reference files but cannot create, edit, or delete them.
+#
+# UPGRADING PERMISSIONS:
+# If a user request is denied because the model cannot write, move, or create files,
+# the filesystem MCP server is running read-only. To enable write access, you would
+# need to reconfigure this at the Docker Desktop level (the gateway runs :ro by design
+# for safety). Consider whether the task truly requires writes before upgrading.
+#
+# EXPANDING SCOPE:
+# To expose additional directories, add more path entries:
+#   - C:\Dev\other-projects
+#   - C:\Users\jerem\Documents
+
+filesystem:
+  paths:
+    - C:\Dev\projects
