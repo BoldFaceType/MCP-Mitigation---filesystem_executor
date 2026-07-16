@@ -4,7 +4,7 @@ import argparse
 import json
 import os
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 
 class VaultPathError(ValueError):
@@ -14,7 +14,7 @@ class VaultPathError(ValueError):
 def resolve_vault_path(root: Path, relative: str) -> Path:
     root = Path(root).expanduser().resolve()
     candidate_path = Path(relative)
-    if candidate_path.is_absolute():
+    if _has_external_root(relative):
         raise VaultPathError("vault path must be relative")
     candidate = (root / candidate_path).resolve()
     try:
@@ -22,6 +22,12 @@ def resolve_vault_path(root: Path, relative: str) -> Path:
     except ValueError as exc:
         raise VaultPathError("vault path escapes configured root") from exc
     return candidate
+
+
+def _has_external_root(value: str) -> bool:
+    posix = PurePosixPath(value)
+    windows = PureWindowsPath(value)
+    return bool(posix.root or windows.root or windows.drive)
 
 
 def read_vault_file(root: Path, relative: str, max_chars: int) -> str:

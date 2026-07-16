@@ -28,7 +28,17 @@ def test_vault_read_list_write_stays_under_root(tmp_path: Path) -> None:
     assert entries == [{"path": "03-Wiki/new-note.md", "type": "file", "size": 11}]
 
 
-@pytest.mark.parametrize("path", ["../outside.md", "C:/outside.md", "/outside.md"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "../outside.md",
+        "C:/outside.md",
+        "C:outside.md",
+        "/outside.md",
+        r"\outside.md",
+        r"\\server\share\outside.md",
+    ],
+)
 def test_vault_rejects_paths_outside_root(tmp_path: Path, path: str) -> None:
     root = tmp_path / "vault"
     root.mkdir()

@@ -9,7 +9,8 @@
 - Restored the separately bounded native MCP `call_worker` endpoint for local
   LM Studio with one-tool discovery, input/output caps, and content-free audit.
 - Added root-scoped Obsidian vault read/list/write cards, atomic writes,
-  explicit write policy, path-escape rejection, and sensitive audit redaction.
+  explicit write policy, cross-platform absolute/path-escape rejection, and
+  sensitive audit redaction.
 - Added fixed read-only Git status/diff cards; kept Docker separate and omitted
   unavailable MQTT/Ollama integrations.
 - Added repeatable live adapter, worker, and vault smoke gates.
