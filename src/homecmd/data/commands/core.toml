@@ -21,3 +21,72 @@ risk = "read"
 argv = ["git", "--version"]
 timeout_seconds = 5
 max_output_chars = 2000
+
+[[commands]]
+id = "git.status"
+summary = "Show compact status for the server working tree"
+risk = "read"
+argv = ["git", "status", "--short", "--branch"]
+timeout_seconds = 10
+max_output_chars = 12000
+
+[[commands]]
+id = "git.diff"
+summary = "Show the unstaged diff summary for the server working tree"
+risk = "read"
+argv = ["git", "diff", "--stat"]
+timeout_seconds = 10
+max_output_chars = 12000
+
+[[commands]]
+id = "filesystem.read"
+summary = "Read one UTF-8 file under the configured vault root"
+risk = "read"
+argv = ["@python", "-m", "homecmd.filesystem", "read", "{path}"]
+timeout_seconds = 10
+max_output_chars = 12000
+sensitive_output = true
+
+[[commands.arguments]]
+name = "path"
+type = "path"
+required = true
+max_length = 500
+
+[[commands]]
+id = "filesystem.list"
+summary = "List one directory under the configured vault root"
+risk = "read"
+argv = ["@python", "-m", "homecmd.filesystem", "list", "{path}"]
+timeout_seconds = 10
+max_output_chars = 12000
+sensitive_output = true
+
+[[commands.arguments]]
+name = "path"
+type = "path"
+required = true
+max_length = 500
+
+[[commands]]
+id = "filesystem.write"
+summary = "Atomically write one UTF-8 file under the configured vault root"
+risk = "write"
+argv = ["@python", "-m", "homecmd.filesystem", "write", "--", "{path}", "{content}"]
+timeout_seconds = 10
+max_output_chars = 2000
+sensitive_output = true
+
+[[commands.arguments]]
+name = "path"
+type = "path"
+required = true
+max_length = 500
+
+[[commands.arguments]]
+name = "content"
+type = "string"
+required = true
+secret = true
+max_length = 12000
+allow_leading_dash = true

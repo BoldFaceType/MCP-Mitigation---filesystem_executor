@@ -38,13 +38,15 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def build_default_service() -> HomecmdService:
+def build_default_service(*, audit_path: Path | None = None) -> HomecmdService:
     configured = os.getenv("HOMECMD_COMMANDS")
     command_path = Path(configured) if configured else Path(str(files("homecmd") / "data" / "commands" / "core.toml"))
-    audit_path = Path(os.getenv("HOMECMD_AUDIT_LOG", Path.home() / ".homecmd" / "audit.jsonl"))
+    active_audit_path = audit_path or Path(
+        os.getenv("HOMECMD_AUDIT_LOG", Path.home() / ".homecmd" / "audit.jsonl")
+    )
     policy_path = os.getenv("HOMECMD_POLICY")
     registry = CommandRegistry.from_paths([command_path])
-    audit = AuditLog(audit_path)
+    audit = AuditLog(active_audit_path)
     policy = PolicyEngine.from_toml(Path(policy_path)) if policy_path else PolicyEngine.read_only()
     executor = CommandExecutor(registry, policy, audit)
     return HomecmdService(registry, executor, audit)

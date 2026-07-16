@@ -43,6 +43,7 @@ class AuditLog:
         result: RunResult,
         args: dict[str, object],
         secret_names: set[str],
+        sensitive_output: bool = False,
     ) -> dict[str, Any]:
         secret_values = _secret_values(args, secret_names)
         event = result.model_dump(mode="json")
@@ -54,6 +55,35 @@ class AuditLog:
         }
         event["stdout"] = _redact(event["stdout"], secret_values)
         event["stderr"] = _redact(event["stderr"], secret_values)
+        if sensitive_output:
+            event["stdout"] = REDACTED
+            event["stderr"] = REDACTED
+        self._append(event)
+        return event
+
+    def record_worker(
+        self,
+        *,
+        run_id: str,
+        ok: bool,
+        model: str | None,
+        input_chars: int,
+        output_chars: int,
+        truncated: bool,
+        error: str | None = None,
+    ) -> dict[str, Any]:
+        event = {
+            "event": "call_worker",
+            "run_id": run_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "ok": ok,
+            "backend": "lmstudio",
+            "model": model,
+            "input_chars": input_chars,
+            "output_chars": output_chars,
+            "truncated": truncated,
+            "error": error,
+        }
         self._append(event)
         return event
 

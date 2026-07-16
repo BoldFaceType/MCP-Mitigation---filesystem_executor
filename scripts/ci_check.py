@@ -24,8 +24,15 @@ REQUIRED_PATHS = [
     Path("pyproject.toml"),
     Path("src/homecmd/cli.py"),
     Path("src/homecmd/acp.py"),
+    Path("src/homecmd/worker.py"),
+    Path("src/homecmd/filesystem.py"),
     Path("src/homecmd/data/commands/core.toml"),
     Path("tests/test_acp.py"),
+    Path("tests/test_worker.py"),
+    Path("tests/test_filesystem.py"),
+    Path("scripts/adapter_smoke.py"),
+    Path("scripts/worker_smoke.py"),
+    Path("scripts/vault_smoke.py"),
     Path("docs/architecture/mcp-mitigation-v0.4.0-canvas.md"),
 ]
 

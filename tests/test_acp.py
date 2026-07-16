@@ -80,6 +80,26 @@ def test_acp_run_uses_same_service_as_cli(tmp_path: Path) -> None:
     assert json.loads(part["content"])["stdout"] == "hello-acp\n"
 
 
+def test_acp_accepts_pinned_sdk_message_shape(tmp_path: Path) -> None:
+    client = TestClient(create_acp_app(make_service(tmp_path)))
+    request = acp_input({
+        "operation": "run",
+        "command_id": "test.echo",
+        "args": {"message": "sdk-shape"},
+    })
+    message = request["input"][0]
+    message.pop("role")
+    message["created_at"] = "2026-07-16T16:00:00Z"
+    message["completed_at"] = "2026-07-16T16:00:01Z"
+
+    response = client.post("/runs", json=request)
+
+    assert response.status_code == 200
+    output = response.json()["output"][0]
+    assert "role" not in output
+    assert json.loads(output["parts"][0]["content"])["stdout"] == "sdk-shape\n"
+
+
 def test_acp_rejects_unknown_operation(tmp_path: Path) -> None:
     client = TestClient(create_acp_app(make_service(tmp_path)))
 

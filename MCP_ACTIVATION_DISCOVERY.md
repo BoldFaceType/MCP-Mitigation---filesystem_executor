@@ -1,18 +1,22 @@
 # MCP Activation and Discovery
 
-Date: 2026-07-05
+Date: 2026-07-16
 
 ## Decision
 
-`homecmd` is ACP-first. It does not ship a native MCP endpoint.
+`homecmd` is ACP-first for command execution and ships a second, bounded MCP
+worker endpoint for local-model delegation.
 
 ```text
 MCP client -> pinned acp-mcp + acp-sdk over stdio -> ACP server -> homecmd core
+External/bounded MCP client -> POST /mcp -> call_worker only -> local LM Studio
 ```
 
 Human users call the `homecmd` CLI directly. ACP clients discover agents with
-`GET /agents` and create synchronous runs with `POST /runs`. MCP clients start
-the official archived adapter as a local stdio child process.
+`GET /agents` and create synchronous runs with `POST /runs`. Trusted MCP
+command clients start the archived adapter as a local stdio child process.
+Clients that need only model delegation use the separately bounded `/mcp`
+endpoint and discover exactly `call_worker`.
 
 ## Compatibility Status
 
@@ -51,6 +55,25 @@ The adapter communicates with the MCP client over stdio, discovers ACP agent
 resources, and exposes `run_agent` for invocation. The upstream unversioned
 container image is not part of this repository's supported deployment path.
 
+## Bounded Worker Discovery
+
+The native worker plane is available at:
+
+```text
+http://127.0.0.1:8000/mcp
+```
+
+Its JSON-RPC discovery result is exactly one tool:
+
+```text
+tools/list -> call_worker
+```
+
+The endpoint does not expose command cards, shell, filesystem, Git, Docker,
+MQTT, credentials, or caller-selected URLs. For LAN or external use, publish
+only this path through an authenticated TLS gateway. Do not publish `/runs` or
+the ACP adapter to untrusted model clients.
+
 ## Codex
 
 Merge [configs/mcp-clients/codex.toml](configs/mcp-clients/codex.toml) into
@@ -69,17 +92,18 @@ Desktop. The adapter registers the ACP agent as a resource and exposes its
 
 ## Discovery Boundary
 
-MCP discovery exposes the adapter's translation of ACP agents. The homecmd ACP
-agent still accepts only `search`, `card`, `run`, and `log` payloads. A `run`
-request must name a registered command card.
+Command-plane MCP discovery exposes the adapter's translation of ACP agents.
+The homecmd ACP agent accepts only `search`, `card`, `run`, and `log` payloads,
+and a `run` request must name a registered command card. Worker-plane MCP
+discovery exposes only `call_worker` and cannot reach the command core.
 
 The following are not shipping discovery or deployment surfaces:
 
 - `/execute`
-- raw filesystem tools
+- raw or unrestricted filesystem tools
 - MQTT command tools
-- a native `/mcp` or `call_worker` endpoint
-- arbitrary shell, Python source, Docker, or Git execution
+- arbitrary shell or caller-controlled interpreter source
+- Docker integration or unrestricted Git execution
 
 ## Token Boundary
 
@@ -88,6 +112,10 @@ The adapter's generic MCP tools replace the former five-tool custom bridge.
 Search returns at most 20 summaries, and ACP run output is a 4,000-character
 preview with full card-bounded output available through an explicit log call.
 Synchronous execution makes `cancel` inapplicable in v0.4.0.
+
+The worker plane adds one always-loaded schema rather than exposing local-model
+management operations. Task/context input is capped at 24,000 characters and
+output at 6,000 characters by default.
 
 Adding a new command requires a reviewed registry card and policy coverage; it
 must not be introduced by broadening the protocol adapter.

@@ -1,7 +1,7 @@
 # MCP Mitigation v0.4.0 RepoReady Canvas
 
 Date: 2026-07-16
-Status: Architecture Implemented / MCP Execution Blocked
+Status: RepoReady / Approved Use-Case Parity Verified
 
 ## Rule Of One
 
@@ -19,6 +19,7 @@ a direct CLI.
 Human CLI   -> homecmd CLI       -> registry -> policy -> executor -> audit
 ACP client  -> homecmd-agent     -> registry -> policy -> executor -> audit
 MCP client  -> acp-mcp adapter   -> homecmd-agent -> same core
+Worker MCP  -> /mcp call_worker  -> bounded local LM Studio client
 ```
 
 The adapter and ACP protocol are archived compatibility boundaries. A2A is the
@@ -31,8 +32,11 @@ Value:
 - One command contract and one enforcement path.
 - Compact discovery through `search` and `card` instead of a large tool list.
 - No arbitrary shell, source-code, filesystem, MQTT, Docker, or Git passthrough.
+- Vault cards resolve beneath one operator-configured root.
+- The separate worker plane exposes one tool and cannot reach the command core.
 - Direct CLI remains usable when no agent protocol is needed.
-- MCP clients reuse an existing adapter rather than adding a second server.
+- Command-plane MCP clients reuse the existing adapter; the native worker route
+  restores the previous one-tool external trust boundary.
 
 Trade-offs:
 
@@ -59,6 +63,7 @@ GET  /health
 GET  /agents
 GET  /agents/homecmd-agent
 POST /runs
+POST /mcp   (call_worker only)
 ```
 
 The ACP message content is a JSON string selecting `search`, `card`, `run`, or
@@ -78,8 +83,13 @@ Token controls retained from v0.3.0:
 
 - Registry cards fix the executable and argument positions.
 - Pydantic rejects unknown card fields and invalid templates.
+- Caller-controlled interpreter source positions are invalid command cards.
 - Execution uses `shell=False`, no stdin, a bounded environment, timeout, and
   output caps.
+- Filesystem cards resolve beneath `HOMECMD_VAULT_ROOT`; sensitive vault output
+  and write content are redacted from persistent audit records.
+- Worker prompts and responses are never persisted; the worker has one fixed
+  LM Studio destination and no command-core reference.
 - The default policy permits only `read` risk.
 - Audit JSONL redacts declared secret arguments and their output values.
 - The server binds to loopback by default.
@@ -95,6 +105,8 @@ src/homecmd/
   audit.py                      durable evidence slice
   app.py + cli.py               direct human interface slice
   acp.py + server.py            network protocol slice
+  worker.py                     bounded one-tool MCP worker slice
+  filesystem.py                 vault-root filesystem slice
   data/commands/core.toml       starter registry slice
 configs/
   policy.*.toml                 deployment policy
@@ -102,6 +114,8 @@ configs/
 scripts/
   ci_check.py                   syntax, complexity, board, hygiene gate
   adapter_smoke.py              live ACP-MCP compatibility gate
+  worker_smoke.py               live bounded LM Studio gate
+  vault_smoke.py                live CLI vault round-trip gate
 tests/                          focused contract tests
 ```
 
@@ -130,6 +144,8 @@ External compatibility verification:
 
 ```powershell
 python scripts/adapter_smoke.py
+python scripts/worker_smoke.py
+python scripts/vault_smoke.py
 ```
 
 ## Maintenance Rules
@@ -150,5 +166,8 @@ python scripts/adapter_smoke.py
 - CLI search, card, run, and log complete against the packaged registry.
 - ACP discovery and synchronous execution complete over live HTTP.
 - The pinned adapter initializes over MCP stdio and exposes `run_agent`.
-- Live MCP `tools/call` is not accepted by the ACP server; v0.4.0 is not a
-  parity or production release until `scripts/adapter_smoke.py` passes.
+- Live adapter MCP `tools/call` executes `system.python_version` through ACP.
+- Native worker MCP discovery exposes exactly `call_worker`, and a live call
+  returns LM Studio output without persisting prompt content.
+- Packaged vault cards complete write/read/list through the CLI while enforcing
+  the configured root and redacted audit boundary.

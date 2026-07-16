@@ -8,10 +8,11 @@ The shipping topology is ACP-first:
 Human CLI  -> homecmd core
 ACP client -> homecmd-agent (/agents and /runs) -> homecmd core
 MCP client -> pinned acp-mcp + acp-sdk -> homecmd-agent -> homecmd core
+Worker MCP -> homecmd-agent (/mcp) -> call_worker only -> local LM Studio
 ```
 
-There is no shipping deployment path for `/execute`, raw filesystem tools,
-MQTT command tools, a native `/mcp` worker, or arbitrary shell input.
+There is no shipping deployment path for `/execute`, unrestricted filesystem
+or MQTT routes, arbitrary shell input, or caller-selected worker backends.
 
 ## Install and Start
 
@@ -30,6 +31,13 @@ Defaults:
 | `HOMECMD_AUDIT_LOG` | `~/.homecmd/audit.jsonl` | Redacted run audit log |
 | `HOMECMD_TOKEN` | unset | Required for any non-loopback bind |
 | `HOMECMD_TLS_TERMINATED` | unset | Must be true for a non-loopback bind after TLS termination |
+| `HOMECMD_VAULT_ROOT` | unset | Required root for filesystem cards |
+| `HOMECMD_POLICY` | read-only default | Optional policy TOML path |
+| `LMSTUDIO_BASE_URL` | `http://127.0.0.1:1234/v1` | Fixed worker backend |
+| `LMSTUDIO_MODEL` | first chat model | Optional fixed model ID |
+| `WORKER_MAX_INPUT_CHARS` | `24000` | Worker task plus context cap |
+| `WORKER_MAX_OUTPUT_CHARS` | `6000` | Worker response cap |
+| `WORKER_TIMEOUT_SECONDS` | `120` | Worker timeout ceiling |
 
 `homecmd serve --host 127.0.0.1 --port 8000` is equivalent to the default
 entry point. Development reload mode is intentionally not used.
@@ -53,6 +61,28 @@ curl -X POST http://127.0.0.1:8000/runs \
 
 Supported operation payloads are `search`, `card`, `run`, and `log`. The `run`
 operation accepts only registered command IDs and validated arguments.
+
+## Vault Cards
+
+Configure one absolute operator-owned root:
+
+```powershell
+$env:HOMECMD_VAULT_ROOT = "C:\Dev\Obsidian-PKB-Active"
+homecmd run filesystem.read path=03-Wiki/example.md
+homecmd run filesystem.list path=03-Wiki
+```
+
+The default policy denies `filesystem.write`. Enable only the bounded write
+risk when needed:
+
+```powershell
+$env:HOMECMD_POLICY = "configs\policy.vault-write.toml"
+homecmd run filesystem.write path=03-Wiki/example.md 'content=# Updated'
+```
+
+The helper rejects absolute paths, traversal, and resolved symlink targets
+outside the configured root. Writes are atomic. Vault content, filenames, and
+write content are redacted from persistent audit records.
 
 ## Authentication and Binding
 
@@ -126,11 +156,23 @@ adapter over MCP stdio, requires `tools/list` to expose `run_agent`, and calls
 that tool to execute `system.python_version` through ACP. It is kept out of
 routine CI because it downloads and executes an archived external package.
 
-Current release gate: discovery succeeds, but the live `tools/call` fails
-because `homecmd-agent` returns `400 Invalid ACP run request`. Treat the MCP
-adapter path as unavailable until this smoke command exits successfully. The
-direct CLI and ACP tests do not substitute for this external compatibility
-gate.
+This smoke is a release gate. It must complete an actual MCP `tools/call`, not
+only adapter initialization or discovery.
+
+## Bounded Worker MCP
+
+The same process exposes `POST /mcp` as a separate trust boundary. Its
+`tools/list` response contains only `call_worker`. That tool sends bounded text
+to the fixed local LM Studio base URL; it has no registry, command, filesystem,
+Git, Docker, credential, or caller-selected network access.
+
+```bash
+python scripts/worker_smoke.py
+```
+
+The smoke starts the shipping server, performs a real MCP `tools/call`, and
+requires nonempty LM Studio output. Worker audit events store the selected
+model and character counts, never task, context, or response text.
 
 ## Token-Efficient Use
 
@@ -148,7 +190,10 @@ adapter as frozen compatibility code and track A2A as the migration target.
 - `GET /health` returns `{"status":"ok"}`.
 - `GET /agents` lists `homecmd-agent`.
 - `POST /runs` completes an approved operation.
+- `POST /mcp` lists only `call_worker`.
 - Non-loopback startup without `HOMECMD_TOKEN` fails.
 - MCP clients start only the pinned `acp-mcp==0.4.2` plus `acp-sdk==0.8.4` stack.
 - `python scripts/adapter_smoke.py` exits successfully before an MCP release.
+- `python scripts/worker_smoke.py` completes a live LM Studio call.
+- `python scripts/vault_smoke.py` completes a vault write/read/list round trip.
 - No client or deployment path accepts arbitrary shell or code.

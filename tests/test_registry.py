@@ -1,4 +1,5 @@
 from pathlib import Path
+from importlib.resources import files
 
 import pytest
 
@@ -148,3 +149,64 @@ required = true
 
     with pytest.raises(ValueError, match="shell interpreters"):
         CommandRegistry.from_paths([path])
+
+
+def test_registry_rejects_caller_controlled_python_source(tmp_path: Path) -> None:
+    path = write_registry(tmp_path, '''\
+[[commands]]
+id = "unsafe.python-source"
+summary = "Caller controlled Python source"
+risk = "read"
+argv = ["@python", "-c", "{code}"]
+
+[[commands.arguments]]
+name = "code"
+required = true
+''')
+
+    with pytest.raises(ValueError, match="interpreter source"):
+        CommandRegistry.from_paths([path])
+
+
+@pytest.mark.parametrize(
+    "executable,arguments",
+    [
+        ("@python", '"-u", "{script}"'),
+        ("node", '"--eval", "{script}"'),
+    ],
+)
+def test_registry_rejects_alternate_caller_controlled_interpreter_sources(
+    tmp_path: Path,
+    executable: str,
+    arguments: str,
+) -> None:
+    path = write_registry(tmp_path, f'''\
+[[commands]]
+id = "unsafe.alternate-source"
+summary = "Caller controlled interpreter source"
+risk = "read"
+argv = ["{executable}", {arguments}]
+
+[[commands.arguments]]
+name = "script"
+required = true
+''')
+
+    with pytest.raises(ValueError, match="interpreter source"):
+        CommandRegistry.from_paths([path])
+
+
+def test_packaged_registry_contains_only_evidence_backed_parity_cards() -> None:
+    path = Path(str(files("homecmd") / "data" / "commands" / "core.toml"))
+    registry = CommandRegistry.from_paths([path])
+
+    assert [card.id for card in registry.search("")] == [
+        "filesystem.list",
+        "filesystem.read",
+        "filesystem.write",
+        "git.diff",
+        "git.status",
+        "git.version",
+        "system.platform",
+        "system.python_version",
+    ]

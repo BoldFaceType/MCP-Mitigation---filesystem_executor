@@ -32,5 +32,8 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall -q src scripts tests
 
+      - name: Run vault CLI smoke
+        run: python scripts/vault_smoke.py
+
       - name: Run repository checks
         run: python scripts/ci_check.py

@@ -42,8 +42,10 @@ class MessagePart(BaseModel):
 class Message(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    role: str = Field(pattern=r"^(user|agent(?:/[A-Za-z0-9_-]+)?)$")
     parts: list[MessagePart] = Field(min_length=1)
+    created_at: datetime | None = None
+    completed_at: datetime | None = None
+    role: str | None = Field(default=None, pattern=r"^(user|agent(?:/[A-Za-z0-9_-]+)?)$")
 
 
 class RunRequest(BaseModel):
@@ -164,7 +166,6 @@ def create_acp_app(service: HomecmdService, token: str | None = None) -> FastAPI
             "status": "completed",
             "await_request": None,
             "output": [{
-                "role": f"agent/{AGENT_NAME}",
                 "parts": [{
                     "name": None,
                     "content_type": "application/json",
@@ -172,6 +173,8 @@ def create_acp_app(service: HomecmdService, token: str | None = None) -> FastAPI
                     "content_encoding": "plain",
                     "content_url": None,
                 }],
+                "created_at": now,
+                "completed_at": now,
             }],
             "error": None,
             "created_at": now,

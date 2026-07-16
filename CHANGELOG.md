@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-07-16
+
+- Fixed the pinned ACP SDK message request/response contract and verified a
+  live adapter MCP `tools/call` through `run_agent`.
+- Rejected caller-controlled Python and other interpreter source positions in
+  command cards while preserving fixed operator code with inert arguments.
+- Restored the separately bounded native MCP `call_worker` endpoint for local
+  LM Studio with one-tool discovery, input/output caps, and content-free audit.
+- Added root-scoped Obsidian vault read/list/write cards, atomic writes,
+  explicit write policy, path-escape rejection, and sensitive audit redaction.
+- Added fixed read-only Git status/diff cards; kept Docker separate and omitted
+  unavailable MQTT/Ollama integrations.
+- Added repeatable live adapter, worker, and vault smoke gates.
+
 ## 2026-07-05
 
 - Replaced legacy raw execution and bounded-worker deployment guidance with the ACP-first `homecmd` architecture.

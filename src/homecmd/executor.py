@@ -15,7 +15,17 @@ from .registry import CommandRegistry
 
 
 _PLACEHOLDER = re.compile(r"^\{([A-Za-z_][A-Za-z0-9_]*)\}$")
-_ALLOWED_ENVIRONMENT = ("PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "HOME", "USERPROFILE", "LANG")
+_ALLOWED_ENVIRONMENT = (
+    "PATH",
+    "SYSTEMROOT",
+    "WINDIR",
+    "TEMP",
+    "TMP",
+    "HOME",
+    "USERPROFILE",
+    "LANG",
+    "HOMECMD_VAULT_ROOT",
+)
 
 
 class ArgumentValidationError(ValueError):
@@ -42,7 +52,7 @@ class CommandExecutor:
         secret_names = {spec.name for spec in card.arguments if spec.secret}
         self._audit.record_start(run_id, card.id, validated, secret_names)
         result = _execute(run_id, card, argv)
-        self._audit.record(result, validated, secret_names)
+        self._audit.record(result, validated, secret_names, sensitive_output=card.sensitive_output)
         return result
 
 
@@ -59,10 +69,12 @@ def _validate_arguments(card: CommandCard, args: dict[str, Any]) -> dict[str, st
 
 def _validate_value(spec: ArgumentSpec, value: Any) -> str:
     rendered = _render_value(spec, value)
-    if rendered.startswith("-"):
+    if rendered.startswith("-") and not spec.allow_leading_dash:
         raise ArgumentValidationError(f"option-like argument rejected: {spec.name}")
     if "\x00" in rendered:
         raise ArgumentValidationError(f"invalid argument: {spec.name}")
+    if spec.max_length is not None and len(rendered) > spec.max_length:
+        raise ArgumentValidationError(f"argument too long: {spec.name}")
     if spec.choices and rendered not in spec.choices:
         raise ArgumentValidationError(f"invalid choice for argument: {spec.name}")
     return rendered

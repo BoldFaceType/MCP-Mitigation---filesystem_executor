@@ -1,0 +1,1 @@
+allowed_risks = ["read", "write"]

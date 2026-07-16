@@ -96,6 +96,6 @@
 - [x] Run ACP discovery/run smoke tests.
 - [x] Append handoff and release board events with verification evidence.
 
-Publication note (2026-07-16): local gates pass, but the external adapter
-`tools/call` fails with `400 Invalid ACP run request`. The feature branch is a
-WIP architecture preview until that compatibility gate passes.
+Parity note (2026-07-16): the external adapter `tools/call`, bounded native
+LM Studio worker, and vault CLI write/read/list smokes pass. Raw execution and
+unrestricted legacy endpoints remain intentionally removed.

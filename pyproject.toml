@@ -33,4 +33,3 @@ homecmd = ["data/commands/*.toml"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 addopts = "-q"
-asyncio_default_fixture_loop_scope = "function"

@@ -2,13 +2,13 @@
 
 Version: 0.2.0
 Date: 2026-07-16
-Status: WIP Handoff / Adapter Execution Blocked
+Status: Verification Complete / Release Handoff Pending
 
 ## Integration Slice
 
 | Slice | Branch | Worktree | Responsibility |
 |---|---|---|---|
-| `acp_homecmd` | `feature/acp-homecmd` | `C:/Dev/projects/mcp-acp-homecmd` | ACP-first gateway, direct CLI, registry, policy, executor, audit, adapter docs, and CI |
+| `acp_homecmd` | `feature/acp-homecmd` | `C:/Dev/projects/mcp-acp-homecmd` | ACP gateway, bounded worker, vault cards, policy, audit, docs, and CI |
 
 ## Component Ownership
 
@@ -73,6 +73,36 @@ Contract:
 - Non-loopback binding requires authentication and TLS termination.
 - No legacy raw execution routes are present.
 
+### `bounded_worker`
+
+Owned paths:
+
+- `src/homecmd/worker.py`
+- `scripts/worker_smoke.py`
+- `tests/test_worker.py`
+
+Contract:
+
+- Native `/mcp` discovery exposes exactly `call_worker`.
+- LM Studio is the fixed backend; caller-selected URLs are impossible.
+- Prompts and responses are not persisted in audit records.
+
+### `vault_filesystem`
+
+Owned paths:
+
+- `src/homecmd/filesystem.py`
+- `src/homecmd/data/commands/core.toml`
+- `configs/policy.vault-write.toml`
+- `scripts/vault_smoke.py`
+- `tests/test_filesystem.py`
+
+Contract:
+
+- Every path resolves beneath `HOMECMD_VAULT_ROOT`.
+- Writes are atomic and require the explicit write policy.
+- Vault content and filenames are redacted from persistent audit output.
+
 ### `docs_adapter`
 
 Owned paths:
@@ -98,7 +128,8 @@ Owned paths:
 ## Cross-Slice Rules
 
 - One owner edits a component path at a time.
-- Do not restore the removed raw `/execute`, filesystem, MQTT, Open-WebUI, or embedded MCP-worker surfaces.
+- Do not restore raw `/execute`, unrestricted filesystem/MQTT/Open-WebUI, or
+  command-capable worker surfaces.
 - Dependencies must be declared in `pyproject.toml`.
 - The frozen ACP compatibility layer must remain isolated from registry, policy, and execution internals.
 - Broad formatting changes across component boundaries are not allowed.
@@ -121,5 +152,6 @@ Multi-agent work appends events to `AGENT_BOARD.jsonl` in this order:
 - `python -m pytest` passes.
 - `python scripts/ci_check.py` passes.
 - CLI and ACP smoke flows pass.
+- Adapter, bounded worker, and vault smoke flows pass.
 - Changes remain within the task manifest scope.
 - Remaining risks are documented.
