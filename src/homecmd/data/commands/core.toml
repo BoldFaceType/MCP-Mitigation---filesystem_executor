@@ -1,0 +1,23 @@
+[[commands]]
+id = "system.python_version"
+summary = "Show the Python runtime version"
+risk = "read"
+argv = ["@python", "--version"]
+timeout_seconds = 5
+max_output_chars = 2000
+
+[[commands]]
+id = "system.platform"
+summary = "Show the local operating system and architecture"
+risk = "read"
+argv = ["@python", "-c", "import platform; print(platform.platform())"]
+timeout_seconds = 5
+max_output_chars = 2000
+
+[[commands]]
+id = "git.version"
+summary = "Show the installed Git version"
+risk = "read"
+argv = ["git", "--version"]
+timeout_seconds = 5
+max_output_chars = 2000

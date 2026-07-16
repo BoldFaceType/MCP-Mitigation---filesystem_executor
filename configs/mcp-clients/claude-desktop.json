@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "homecmd": {
+      "command": "uvx",
+      "args": [
+        "--with",
+        "acp-sdk==0.8.4",
+        "acp-mcp==0.4.2",
+        "http://127.0.0.1:8000"
+      ]
+    }
+  }
+}

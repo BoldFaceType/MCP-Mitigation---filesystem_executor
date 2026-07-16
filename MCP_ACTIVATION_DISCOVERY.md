@@ -1,107 +1,93 @@
 # MCP Activation and Discovery
 
-Date: 2026-05-29
+Date: 2026-07-05
 
 ## Decision
 
-Activation and discovery are split by trust boundary.
-
-Local trusted models and agents may use a local MCP endpoint. External foundation models may use only a bounded worker endpoint that exposes one tool: `call_worker`.
-
-## Local discovery
-
-Local clients should connect to the local service endpoint:
+`homecmd` is ACP-first. It does not ship a native MCP endpoint.
 
 ```text
-http://localhost:8000/mcp
+MCP client -> pinned acp-mcp + acp-sdk over stdio -> ACP server -> homecmd core
 ```
 
-From a container on the same Docker network, use:
+Human users call the `homecmd` CLI directly. ACP clients discover agents with
+`GET /agents` and create synchronous runs with `POST /runs`. MCP clients start
+the official archived adapter as a local stdio child process.
 
-```text
-http://mcp-mitigation:8000/mcp
+## Compatibility Status
+
+IBM/BeeAI ACP and the official `i-am-bee/acp-mcp` adapter were archived when
+ACP merged into Agent2Agent (A2A) under the Linux Foundation. Versions
+`acp-mcp==0.4.2` and `acp-sdk==0.8.4` form the pinned compatibility boundary
+for this repository. The adapter's declared SDK lower bound is insufficient;
+`acp-sdk==1.0.3` breaks its `run_agent` session call. A2A is the future target.
+
+Do not use an unpinned Python adapter version. Do not interpret the adapter as
+an actively maintained protocol layer.
+
+## Start the ACP Server
+
+```bash
+homecmd-agent
 ```
 
-MCP-native discovery is performed with:
+Verify discovery:
 
-```json
-{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}
+```bash
+curl http://127.0.0.1:8000/agents
 ```
 
-For the bounded worker endpoint, `tools/list` returns only:
+The response must include `homecmd-agent`. The service default is loopback-only.
 
-```text
-call_worker
+## Start the MCP Adapter
+
+Preferred pinned command:
+
+```bash
+uvx --with acp-sdk==0.8.4 acp-mcp==0.4.2 http://127.0.0.1:8000
 ```
 
-If a broader local control-plane MCP bridge is added later, it should use a separate local-only endpoint such as:
+The adapter communicates with the MCP client over stdio, discovers ACP agent
+resources, and exposes `run_agent` for invocation. The upstream unversioned
+container image is not part of this repository's supported deployment path.
 
-```text
-/mcp/local
-```
+## Codex
 
-That local-only endpoint may expose compact command tools such as:
+Merge [configs/mcp-clients/codex.toml](configs/mcp-clients/codex.toml) into
+`~/.codex/config.toml`, or use it as project configuration at
+`.codex/config.toml` in a trusted repository. Restart Codex, then inspect the
+active server with `/mcp`.
 
-```text
-cmd_search
-cmd_card
-cmd_run
-cmd_log
-```
+The example allows only `run_agent` and leaves tool approval in prompt mode.
 
-Do not expose the local control-plane endpoint to external foundation models.
+## Claude Desktop
 
-## External discovery
+Merge [configs/mcp-clients/claude-desktop.json](configs/mcp-clients/claude-desktop.json)
+into `%APPDATA%\Claude\claude_desktop_config.json`, then restart Claude
+Desktop. The adapter registers the ACP agent as a resource and exposes its
+`run_agent` tool.
 
-External foundation models should discover only a published or registered remote MCP endpoint that maps to the bounded worker plane:
+## Discovery Boundary
 
-```text
-https://<secure-gateway>/mcp
-```
+MCP discovery exposes the adapter's translation of ACP agents. The homecmd ACP
+agent still accepts only `search`, `card`, `run`, and `log` payloads. A `run`
+request must name a registered command card.
 
-The gateway may proxy inward to the local service, but it must expose only:
+The following are not shipping discovery or deployment surfaces:
 
-```text
-call_worker
-```
+- `/execute`
+- raw filesystem tools
+- MQTT command tools
+- a native `/mcp` or `call_worker` endpoint
+- arbitrary shell, Python source, Docker, or Git execution
 
-External model discovery remains MCP-native:
+## Token Boundary
 
-```text
-tools/list -> call_worker only
-tools/call -> call_worker only
-```
+The adapter's generic MCP tools replace the former five-tool custom bridge.
+`run_agent` carries compact `search`, `card`, `run`, and `log` operations.
+Search returns at most 20 summaries, and ACP run output is a 4,000-character
+preview with full card-bounded output available through an explicit log call.
+Synchronous execution makes `cancel` inapplicable in v0.4.0.
 
-The external model must never discover or call `homecmd`, `cmd_run`, Docker, filesystem, Git, shell, Ollama direct access, or LM Studio direct access.
-
-## Recommended endpoint layout
-
-```text
-Local trusted clients
-  -> http://localhost:8000/mcp/local
-  -> cmd_search, cmd_card, cmd_run, cmd_log
-
-External foundation models
-  -> https://<secure-gateway>/mcp
-  -> call_worker only
-
-Internal worker broker
-  -> LM Studio now
-  -> Ollama later
-```
-
-## Activation path
-
-1. Run or rebuild `mcp-mitigation` so `/mcp` is live.
-2. Configure local MCP clients to use `http://localhost:8000/mcp`.
-3. Add an authenticated gateway only when external foundation models need access.
-4. Route the gateway only to the bounded worker endpoint.
-5. Register the external model integration against the gateway URL, not against the local command surface.
-
-## Boundary rule
-
-Discovery is allowed, but the discovery result is bounded by endpoint.
-
-External foundation models discover exactly one tool: `call_worker`.
-
-Local trusted clients may later discover the broader command bridge, but only on a separate local-only endpoint.
+Adding a new command requires a reviewed registry card and policy coverage; it
+must not be introduced by broadening the protocol adapter.

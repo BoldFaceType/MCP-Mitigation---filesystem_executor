@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-07-05
+
+- Replaced legacy raw execution and bounded-worker deployment guidance with the ACP-first `homecmd` architecture.
+- Documented human CLI, ACP `/agents` and `/runs`, and MCP compatibility through pinned `acp-mcp==0.4.2`.
+- Added Codex TOML and Claude Desktop JSON MCP client examples.
+- Rebuilt the Docker image to install the package and run loopback-default `homecmd-agent` without reload mode.
+- Recorded the archived IBM/BeeAI ACP and `acp-mcp` boundary and A2A migration target.
+- Retained v0.3.0 progressive disclosure with a 20-result search cap and 4,000-character ACP run previews.
+- Pinned `acp-sdk==0.8.4` with `acp-mcp==0.4.2` after live testing found the adapter incompatible with SDK 1.0.3.
+- Rejected shell-interpreter command cards, moved blocking execution off the event loop, bounded capture through temporary files, and required durable start audit records.
+- Added board lease/ownership validation and a live MCP `tools/call` smoke harness.
+- Recorded the v0.4.0 preview boundary: local tests pass, while live MCP
+  `run_agent` execution remains blocked by an ACP request-schema mismatch.
+
 ## 2026-05-29
 
 - Added bounded MCP worker-plane activation/discovery documentation for local clients and external foundation models.

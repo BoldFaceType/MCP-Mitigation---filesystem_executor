@@ -1,120 +1,154 @@
-# mcp-mitigation — Operations & Maintenance
+# homecmd Operations
 
-## What This Is
+## Deployment Model
 
-A FastAPI microservice that provides isolated code execution for Open-WebUI AI models.
-Replaces MCP tool token overhead (~150K tokens/task) with filesystem-based code execution (~2K tokens/task).
+The shipping topology is ACP-first:
 
-## Service Topology
-
-```
-[Open-WebUI :3000] ──(ollama-net)──► [mcp-mitigation :8000]
-                                          │
-                                          └── /workspace (C:/Dev/projects mounted rw)
+```text
+Human CLI  -> homecmd core
+ACP client -> homecmd-agent (/agents and /runs) -> homecmd core
+MCP client -> pinned acp-mcp + acp-sdk -> homecmd-agent -> homecmd core
 ```
 
-All containers run on the `ollama-net` Docker network.
-Compose project: `C:/Dev/projects/ollama-webui/docker-compose.yml`
+There is no shipping deployment path for `/execute`, raw filesystem tools,
+MQTT command tools, a native `/mcp` worker, or arbitrary shell input.
 
----
+## Install and Start
 
-## Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Returns `{"status": "ok"}` |
-| POST | `/execute` | Executes code; returns `{"result": "...", "error": null}` |
-| GET | `/tool` | Serves `open-webui-tool.py` as plain text for URL import |
-
-**Execute request body:**
-```json
-{"code": "print(1 + 1)", "language": "python"}
-```
-
----
-
-## Source Files
-
-| File | Purpose | Status |
-|------|---------|--------|
-| `src/main.py` | FastAPI app, route definitions | Done |
-| `src/executor.py` | Code execution logic | Done — subprocess sandbox, python + shell |
-| `open-webui-tool.py` | Open-WebUI tool definition | Done |
-| `Dockerfile` | python:3.12-slim, uvicorn with `--reload` | Done |
-
----
-
-## Open-WebUI Tool Registration
-
-**Import via URL (preferred):**
-1. Open http://localhost:3000
-2. Admin Panel → Workspace → Tools → **+ New Tool** → **Import from URL**
-3. Enter: `http://localhost:8000/tool`
-4. Click **Save**
-
-**Or paste manually:**
-1. Admin Panel → Workspace → Tools → **+ New Tool**
-2. Paste full contents of `open-webui-tool.py`
-3. Click **Save**
-
-**Enable per model:**
-Admin Panel → Workspace → Models → select model → Tools section → toggle **Execute Code** ON
-
-Models with function calling support: `phi4:14b`, `qwen3.5:9b`
-
-**Tool valve (overridable in admin panel):**
-- `EXECUTE_URL` — default `http://mcp-mitigation:8000/execute`
-
----
-
-## Common Operations
-
-### Start the full stack
 ```bash
-cd C:/Dev/projects/ollama-webui
-docker compose up -d
+python -m pip install .
+homecmd-agent
 ```
 
-### Rebuild after source changes to mcp-mitigation
+Defaults:
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `HOMECMD_HOST` | `127.0.0.1` | Loopback-only bind |
+| `HOMECMD_PORT` | `8000` | ACP HTTP port |
+| `HOMECMD_COMMANDS` | packaged `core.toml` | Registered command catalog |
+| `HOMECMD_AUDIT_LOG` | `~/.homecmd/audit.jsonl` | Redacted run audit log |
+| `HOMECMD_TOKEN` | unset | Required for any non-loopback bind |
+| `HOMECMD_TLS_TERMINATED` | unset | Must be true for a non-loopback bind after TLS termination |
+
+`homecmd serve --host 127.0.0.1 --port 8000` is equivalent to the default
+entry point. Development reload mode is intentionally not used.
+
+## Service Checks
+
 ```bash
-cd C:/Dev/projects/ollama-webui
-docker compose up -d --build mcp-mitigation
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/agents
 ```
 
-### Check service health
-```bash
-# From host
-curl http://localhost:8000/health
+Expected discovery includes one agent named `homecmd-agent`.
 
-# From open-webui container (verifies internal network)
-docker exec open-webui curl -s http://mcp-mitigation:8000/health
-```
+Run a registered operation through ACP:
 
-### View logs
 ```bash
-docker logs mcp-mitigation --tail 50 -f
-```
-
-### Test execute endpoint
-```bash
-curl -s -X POST http://localhost:8000/execute \
+curl -X POST http://127.0.0.1:8000/runs \
   -H "Content-Type: application/json" \
-  -d '{"code": "print(1+1)", "language": "python"}'
-# Returns: {"result":"2\n","error":null}
-
-# Shell example
-curl -s -X POST http://localhost:8000/execute \
-  -H "Content-Type: application/json" \
-  -d '{"code": "ls /workspace", "language": "shell"}'
+  -d '{"agent_name":"homecmd-agent","mode":"sync","input":[{"role":"user","parts":[{"content_type":"application/json","content":"{\"operation\":\"run\",\"command_id\":\"system.python_version\",\"args\":{}}"}]}]}'
 ```
 
----
+Supported operation payloads are `search`, `card`, `run`, and `log`. The `run`
+operation accepts only registered command IDs and validated arguments.
 
-## Verification Checklist (end-to-end)
+## Authentication and Binding
 
-- [ ] `curl http://localhost:8000/health` → `{"status":"ok"}`
-- [ ] `curl http://localhost:8000/tool` → returns Python source of open-webui-tool.py
-- [ ] `POST /execute` with `{"code":"print(1+1)","language":"python"}` → `{"result":"2\n","error":null}`
-- [ ] Tool imported/registered in Open-WebUI Admin Panel → Tools list
-- [ ] Tool enabled on target model(s): phi4:14b, qwen3.5:9b
-- [ ] Chat with model → prompt to use `execute_code` → model calls tool → actual stdout returned
+Loopback is the default trust boundary. A non-loopback bind fails at startup
+unless `HOMECMD_TOKEN` is set and `HOMECMD_TLS_TERMINATED=true`. The TLS
+setting is an operator assertion: set it only when a trusted reverse proxy or
+service mesh terminates TLS before traffic reaches `homecmd-agent`. ACP
+requests then require:
+
+```text
+Authorization: Bearer <HOMECMD_TOKEN>
+```
+
+`/health` remains unauthenticated for local process supervision. Do not bind to
+`0.0.0.0` without a token, and do not publish the service directly to an
+untrusted network.
+
+## Docker Image
+
+Build the package image:
+
+```bash
+docker build -t homecmd-agent:0.4.0 .
+```
+
+The image installs this repository as a Python package and starts
+`homecmd-agent` without `--reload`. Its default bind remains `127.0.0.1`.
+
+The image runs as an unprivileged `homecmd` user. Its default loopback bind is
+useful for in-container checks but is intentionally unreachable through a
+published Docker port.
+
+For a networked container, place it behind a TLS-terminating reverse proxy,
+enable the internal non-loopback bind, and supply a token:
+
+```bash
+docker run --rm \
+  -e HOMECMD_HOST=0.0.0.0 \
+  -e HOMECMD_TOKEN=replace-with-a-secret \
+  -e HOMECMD_TLS_TERMINATED=true \
+  --network homecmd-private \
+  homecmd-agent:0.4.0
+```
+
+Do not publish the application container directly. Publish the reverse
+proxy's TLS port and keep `homecmd-private` isolated from untrusted workloads.
+
+## MCP Adapter
+
+For MCP clients, run the pinned archived adapter against a loopback
+`homecmd-agent` process:
+
+```bash
+uvx --with acp-sdk==0.8.4 acp-mcp==0.4.2 http://127.0.0.1:8000
+```
+
+The adapter uses stdio for the MCP client connection; do not publish an adapter
+port. Both pins are required. The adapter's open-ended `acp-sdk>=0.8.4`
+dependency otherwise resolves `1.0.3`, whose client session API is incompatible
+with `acp-mcp==0.4.2`. The upstream container image is unversioned and is not a
+supported reproducible deployment path here.
+
+After installing this package and `uv`, run the live compatibility smoke test:
+
+```bash
+python scripts/adapter_smoke.py
+```
+
+The script starts a temporary loopback ACP server, initializes the pinned
+adapter over MCP stdio, requires `tools/list` to expose `run_agent`, and calls
+that tool to execute `system.python_version` through ACP. It is kept out of
+routine CI because it downloads and executes an archived external package.
+
+Current release gate: discovery succeeds, but the live `tools/call` fails
+because `homecmd-agent` returns `400 Invalid ACP run request`. Treat the MCP
+adapter path as unavailable until this smoke command exits successfully. The
+direct CLI and ACP tests do not substitute for this external compatibility
+gate.
+
+## Token-Efficient Use
+
+For agent callers, use `search`, then one `card`, then `run`. Search is capped
+at 20 summaries. ACP run responses include a maximum 4,000-character combined
+stdout/stderr preview; use `log` only when the full card-bounded output is
+actually needed. There is no `cancel` operation while execution is synchronous.
+
+IBM/BeeAI ACP and `acp-mcp` were archived after ACP merged into A2A. Treat this
+adapter as frozen compatibility code and track A2A as the migration target.
+
+## Verification Checklist
+
+- `homecmd search version` lists approved command cards.
+- `GET /health` returns `{"status":"ok"}`.
+- `GET /agents` lists `homecmd-agent`.
+- `POST /runs` completes an approved operation.
+- Non-loopback startup without `HOMECMD_TOKEN` fails.
+- MCP clients start only the pinned `acp-mcp==0.4.2` plus `acp-sdk==0.8.4` stack.
+- `python scripts/adapter_smoke.py` exits successfully before an MCP release.
+- No client or deployment path accepts arbitrary shell or code.
