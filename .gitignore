@@ -9,3 +9,6 @@ audit.jsonl
 .env
 .env.*
 !.env.example
+
+# Local secret-bearing notes
+/Google API key SKILL.md
