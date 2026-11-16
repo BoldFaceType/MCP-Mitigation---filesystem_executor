@@ -18,6 +18,7 @@ from pathlib import Path
 
 ADAPTER_PACKAGE = "acp-mcp==0.4.2"
 ACP_SDK_PACKAGE = "acp-sdk==0.8.4"
+MCP_PACKAGE = "mcp<2"
 
 
 def reserve_port() -> int:
@@ -158,6 +159,8 @@ def run_adapter(adapter: str, url: str) -> tuple[list[dict], dict, str]:
             adapter,
             "--with",
             ACP_SDK_PACKAGE,
+            "--with",
+            MCP_PACKAGE,
             ADAPTER_PACKAGE,
             "--log-level",
             "ERROR",
@@ -225,6 +228,7 @@ def main() -> int:
     print(json.dumps({
         "adapter": ADAPTER_PACKAGE,
         "acp_sdk": ACP_SDK_PACKAGE,
+        "mcp": MCP_PACKAGE,
         "tools": tool_names,
         "run_agent_required": run_agent["inputSchema"].get("required", []),
         "executed_command": "system.python_version",

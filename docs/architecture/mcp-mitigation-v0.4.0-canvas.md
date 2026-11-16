@@ -12,7 +12,7 @@ an ACP client, or an MCP client.
 ## Decision
 
 ACP is the primary network protocol. MCP compatibility is delegated to the
-existing `acp-mcp==0.4.2` adapter with `acp-sdk==0.8.4`. Human operators retain
+existing `acp-mcp==0.4.2` adapter with `acp-sdk==0.8.4` and `mcp<2`. Human operators retain
 a direct CLI.
 
 ```text
@@ -129,7 +129,7 @@ The active implementation worktree is `C:/Dev/projects/mcp-acp-homecmd` on
 python -m pip install .
 homecmd search version
 homecmd-agent
-uvx --with acp-sdk==0.8.4 acp-mcp==0.4.2 http://127.0.0.1:8000
+uvx --with acp-sdk==0.8.4 --with "mcp<2" acp-mcp==0.4.2 http://127.0.0.1:8000
 ```
 
 Routine verification:

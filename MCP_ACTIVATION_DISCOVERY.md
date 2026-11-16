@@ -22,7 +22,7 @@ endpoint and discover exactly `call_worker`.
 
 IBM/BeeAI ACP and the official `i-am-bee/acp-mcp` adapter were archived when
 ACP merged into Agent2Agent (A2A) under the Linux Foundation. Versions
-`acp-mcp==0.4.2` and `acp-sdk==0.8.4` form the pinned compatibility boundary
+`acp-mcp==0.4.2`, `acp-sdk==0.8.4`, and `mcp<2` form the pinned compatibility boundary
 for this repository. The adapter's declared SDK lower bound is insufficient;
 `acp-sdk==1.0.3` breaks its `run_agent` session call. A2A is the future target.
 
@@ -48,7 +48,7 @@ The response must include `homecmd-agent`. The service default is loopback-only.
 Preferred pinned command:
 
 ```bash
-uvx --with acp-sdk==0.8.4 acp-mcp==0.4.2 http://127.0.0.1:8000
+uvx --with acp-sdk==0.8.4 --with "mcp<2" acp-mcp==0.4.2 http://127.0.0.1:8000
 ```
 
 The adapter communicates with the MCP client over stdio, discovers ACP agent

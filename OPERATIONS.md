@@ -136,13 +136,14 @@ For MCP clients, run the pinned archived adapter against a loopback
 `homecmd-agent` process:
 
 ```bash
-uvx --with acp-sdk==0.8.4 acp-mcp==0.4.2 http://127.0.0.1:8000
+uvx --with acp-sdk==0.8.4 --with "mcp<2" acp-mcp==0.4.2 http://127.0.0.1:8000
 ```
 
 The adapter uses stdio for the MCP client connection; do not publish an adapter
 port. Both pins are required. The adapter's open-ended `acp-sdk>=0.8.4`
 dependency otherwise resolves `1.0.3`, whose client session API is incompatible
-with `acp-mcp==0.4.2`. The upstream container image is unversioned and is not a
+with `acp-mcp==0.4.2` and `mcp<2`. MCP 2.x removed the legacy server API used
+by the archived adapter. The upstream container image is unversioned and is not a
 supported reproducible deployment path here.
 
 After installing this package and `uv`, run the live compatibility smoke test:
@@ -192,7 +193,7 @@ adapter as frozen compatibility code and track A2A as the migration target.
 - `POST /runs` completes an approved operation.
 - `POST /mcp` lists only `call_worker`.
 - Non-loopback startup without `HOMECMD_TOKEN` fails.
-- MCP clients start only the pinned `acp-mcp==0.4.2` plus `acp-sdk==0.8.4` stack.
+- MCP clients start only the pinned `acp-mcp==0.4.2`, `acp-sdk==0.8.4`, and `mcp<2` stack.
 - `python scripts/adapter_smoke.py` exits successfully before an MCP release.
 - `python scripts/worker_smoke.py` completes a live LM Studio call.
 - `python scripts/vault_smoke.py` completes a vault write/read/list round trip.

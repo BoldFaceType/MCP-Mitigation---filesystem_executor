@@ -26,10 +26,11 @@ The dated architecture baseline is the
 IBM/BeeAI's Agent Communication Protocol (ACP) and the official `acp-mcp`
 adapter were archived after ACP merged into Agent2Agent (A2A) under the Linux
 Foundation. This repository intentionally retains the ACP HTTP contract and
-pins `acp-mcp==0.4.2` and `acp-sdk==0.8.4` as one compatibility boundary.
+pins `acp-mcp==0.4.2`, `acp-sdk==0.8.4`, and `mcp<2` as one compatibility boundary.
 `acp-mcp` declares only a lower SDK bound, but its `run_agent` implementation
-is incompatible with `acp-sdk==1.0.3`. Migration to A2A is the future protocol
-target; do not silently upgrade either pin.
+is incompatible with `acp-sdk==1.0.3`, and its legacy server API is incompatible
+with MCP 2.x. Migration to A2A is the future protocol target; do not silently
+upgrade or remove these constraints.
 
 The server intentionally implements the synchronous inline text/JSON subset
 used by the adapter, not every archived ACP feature.
@@ -126,7 +127,7 @@ for deployment and verification.
 Run the pinned stdio adapter while `homecmd-agent` is listening locally:
 
 ```bash
-uvx --with acp-sdk==0.8.4 acp-mcp==0.4.2 http://127.0.0.1:8000
+uvx --with acp-sdk==0.8.4 --with "mcp<2" acp-mcp==0.4.2 http://127.0.0.1:8000
 ```
 
 The adapter discovers ACP agents and exposes `run_agent`; its live

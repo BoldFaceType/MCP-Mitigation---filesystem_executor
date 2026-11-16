@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-16
+
+- Constrained the archived `acp-mcp==0.4.2` compatibility bridge to `mcp<2`
+  after MCP 2.x removed the legacy server API required by the adapter.
+
 ## 2026-07-16
 
 - Fixed the pinned ACP SDK message request/response contract and verified a
